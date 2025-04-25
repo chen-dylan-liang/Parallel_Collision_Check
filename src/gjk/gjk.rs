@@ -168,6 +168,24 @@ pub struct Contact {
     pub depth:  f64,
 }
 
+pub fn serial_narrow_phase(
+    pairs:   &[(usize, usize)],
+    shapes:  &[&dyn ShapeTrait],
+    poses:   &[LieGroupISE3q],
+)-> Vec<Contact>{
+    assert_eq!(shapes.len(), poses.len(),
+               "shapes and poses slices must have the same length");
+    pairs.iter().filter_map(
+        |&(i, j)
+        | {
+            let (p, d) = gjk_contact(
+                shapes[i], &poses[i],
+                shapes[j], &poses[j],
+            );
+            (d > 0.0).then(|| Contact { i, j, normal: p, depth: d })
+        }).collect()
+}
+
 // embarrassingly parallelized narrow phase using Rayon parallel iterator
 pub fn parallel_narrow_phase(
     pairs:   &[(usize, usize)],
