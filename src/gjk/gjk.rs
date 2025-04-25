@@ -2,6 +2,7 @@ use apollo_rust_spatial::vectors::V3;
 use std::ops::{Add, Div, Neg, Sub};
 use crate::shape::shape::ShapeTrait;
 use apollo_rust_spatial::lie::se3_implicit_quaternion::LieGroupISE3q;
+use rayon::prelude::*;
 
 const _PROXIMITY_TOL: f64 =1e-6;
 const _PROXIMITY_MAX_ITERS: usize = 100;
@@ -157,4 +158,34 @@ pub fn gjk_contact<S1: ShapeTrait, S2: ShapeTrait>(shape1: &S1, pose1: &LieGroup
         iter+=1;
     }
     (dir, dist)
+}
+
+#[derive(Debug)]
+pub struct Contact {
+    pub i: usize,
+    pub j: usize,
+    pub normal: V3,
+    pub depth:  f64,
+}
+
+// embarrassingly parallelized narrow phase using Rayon parallel iterator
+pub fn parallel_narrow_phase(
+    pairs:   &[(usize, usize)],
+    shapes:  &[&dyn ShapeTrait],
+    poses:   &[LieGroupISE3q],
+) -> Vec<Contact>
+{
+    assert_eq!(shapes.len(), poses.len(),
+               "shapes and poses slices must have the same length");
+
+    pairs.par_iter()
+        .filter_map(
+            |&(i, j)
+            | {
+            let (p, d) = gjk_contact(
+                shapes[i], &poses[i],
+                shapes[j], &poses[j],
+            );
+            (d > 0.0).then(|| Contact { i, j, normal: p, depth: d })
+        }).collect()
 }
