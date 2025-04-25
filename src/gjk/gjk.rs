@@ -168,7 +168,7 @@ pub struct Contact {
     pub depth:  f64,
 }
 
-pub fn serial_narrow_phase(
+pub fn serial_narrow_phase_check(
     pairs:   &[(usize, usize)],
     shapes:  &[&dyn ShapeTrait],
     poses:   &[LieGroupISE3q],
@@ -187,7 +187,7 @@ pub fn serial_narrow_phase(
 }
 
 // embarrassingly parallelized narrow phase using Rayon parallel iterator
-pub fn parallel_narrow_phase(
+pub fn parallel_narrow_phase_check(
     pairs:   &[(usize, usize)],
     shapes:  &[&dyn ShapeTrait],
     poses:   &[LieGroupISE3q],

@@ -2,8 +2,8 @@ use apollo_rust_lie::{EuclideanSpaceElement, LieGroupElement};
 use apollo_rust_mesh_utils::trimesh::TriMesh;
 use apollo_rust_spatial::lie::se3_implicit_quaternion::LieGroupISE3q;
 use apollo_rust_spatial::vectors::{ApolloVector3Trait, V3};
-use std::ops::{Add, Div, Neg, Sub};
-use bevy::render::render_resource::AsBindGroupShaderType;
+use parry3d_f64::math::Point;
+use parry3d_f64::transformation::convex_hull;
 
 pub trait ShapeTrait {
     fn support(&self, dir: &V3, shape_pose: &LieGroupISE3q) -> V3;
@@ -15,6 +15,15 @@ pub struct ConvexPolyhedron(pub TriMesh);
 impl ConvexPolyhedron {
     pub fn new(input_mesh: &TriMesh)->Self{
         Self(input_mesh.to_convex_hull())
+    }
+    pub fn from_points(points: &[V3])->Self{
+        let (ch_points, ch_indices) = convex_hull(points.iter().map(|x| Point::from_slice(x)).collect());
+        let points: Vec<[f64; 3]> = ch_points.iter().map(|x| [x[0], x[1], x[2]] ).collect();
+        let indices: Vec<[usize; 3]> = ch_indices.iter().map(|x| [ x[0] as usize, x[1] as usize, x[2] as usize]).collect();
+        Self(TriMesh {
+            points,
+            indices
+        })
     }
 }
 impl ShapeTrait for ConvexPolyhedron {
