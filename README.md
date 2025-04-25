@@ -1,2 +1,3 @@
-# Parallel_Collision_Check
-A parallel collision checking algorithm implemented in Rust
+# Parallel Collision Check
+- A parallel collision checking algorithm implemented in Rust
+- For final project of Yale CPSC 524
