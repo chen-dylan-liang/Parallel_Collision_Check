@@ -82,9 +82,9 @@ impl BVHLeafNode{
     pub fn new(shape_indices: Vec<usize>, all_aabbs:&[AABB])->Self{
         let mut min_coords = V3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY);
         let mut max_coords = V3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
-        for i in &shape_indices{
-            min_coords = min_coords.inf(&all_aabbs[i].min_coords);
-            max_coords = max_coords.sup(&all_aabbs[i].max_coords);
+        for &i in &shape_indices{
+            min_coords = min_coords.inf(&(all_aabbs[i].min_coords));
+            max_coords = max_coords.sup(&(all_aabbs[i].max_coords));
         }
         Self{
             shape_indices,
@@ -97,7 +97,7 @@ impl BVHNode for BVHInternalNode{
     fn is_leaf(&self) -> bool{false}
 
     fn children(&self) -> (Option<&dyn BVHNode>, Option<&dyn BVHNode>) {
-        (Some(&self.left), Some(&self.right))
+        (Some(&*self.left), Some(&*self.right))
     }
 
     fn leaf_indices(&self) -> Option<&[usize]> {

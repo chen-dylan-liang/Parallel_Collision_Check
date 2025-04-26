@@ -4,7 +4,7 @@ use super::structs::{AABB, BVHNode, BVHInternalNode, BVHLeafNode};
 fn serial_longest_extent_axis(aabb_indices: &[usize], all_aabbs:&[AABB])->(usize, f64){
     let mut min_v =  V3::new(f64::INFINITY,  f64::INFINITY,  f64::INFINITY);
     let mut max_v = V3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
-    for i in aabb_indices.iter(){
+    for &i in aabb_indices {
         let bb = &all_aabbs[i];
         min_v = min_v.inf(&bb.min_coords);
         max_v = max_v.sup(&bb.max_coords);
@@ -21,7 +21,7 @@ fn serial_longest_extent_axis(aabb_indices: &[usize], all_aabbs:&[AABB])->(usize
 }
 
 fn serial_split_at_axis<'a>(aabb_indices: &'a mut [usize], all_aabbs:&[AABB], axis:usize, midpoint: f64)->(&'a mut [usize], &'a mut [usize]){
-    let mid = aabb_indices.partition_in_place(
+    let mid = aabb_indices.into_iter().partition_in_place(
         |&idx| {
             all_aabbs[idx].center[axis] < midpoint
         }
@@ -42,7 +42,7 @@ pub fn serial_build_bvh(aabb_indices: &mut [usize], all_aabbs:&[AABB], cut_off_s
     // do recursive calls
     let left_tree = serial_build_bvh(indices_left, all_aabbs, cut_off_size);
     let right_tree = serial_build_bvh(indices_right, all_aabbs, cut_off_size);
-    let aabb = left_tree.union_aabb(&right_tree);
+    let aabb = left_tree.union_aabb(&*right_tree);
     Box::new(BVHInternalNode::new(aabb, left_tree, right_tree))
 }
 

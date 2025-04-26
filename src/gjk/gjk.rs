@@ -1,6 +1,6 @@
 use apollo_rust_spatial::vectors::V3;
 use std::ops::{Add, Div, Neg, Sub};
-use crate::shape::shape::ShapeTrait;
+use crate::shape::shape::{ConvexPolyhedron, ShapeTrait};
 use apollo_rust_spatial::lie::se3_implicit_quaternion::LieGroupISE3q;
 use rayon::prelude::*;
 
@@ -164,13 +164,11 @@ pub fn gjk_contact<S1: ShapeTrait, S2: ShapeTrait>(shape1: &S1, pose1: &LieGroup
 pub struct Contact {
     pub i: usize,
     pub j: usize,
-    pub normal: V3,
-    pub depth:  f64,
 }
 
 pub fn serial_narrow_phase_check(
     pairs:   &[(usize, usize)],
-    shapes:  &[&dyn ShapeTrait],
+    shapes:  &[ConvexPolyhedron],
     poses:   &[LieGroupISE3q],
 )-> Vec<Contact>{
     assert_eq!(shapes.len(), poses.len(),
@@ -179,17 +177,17 @@ pub fn serial_narrow_phase_check(
         |&(i, j)
         | {
             let (p, d) = gjk_contact(
-                shapes[i], &poses[i],
-                shapes[j], &poses[j],
+                &shapes[i], &poses[i],
+                &shapes[j], &poses[j],
             );
-            (d < _PROXIMITY_TOL).then(|| Contact { i, j, normal: p, depth: d })
+            (d < _PROXIMITY_TOL).then(|| Contact { i, j})
         }).collect()
 }
 
 // embarrassingly parallelized narrow phase using Rayon parallel iterator
 pub fn parallel_narrow_phase_check(
     pairs:   &[(usize, usize)],
-    shapes:  &[&dyn ShapeTrait],
+    shapes:  &[ConvexPolyhedron],
     poses:   &[LieGroupISE3q],
 ) -> Vec<Contact>
 {
@@ -201,9 +199,9 @@ pub fn parallel_narrow_phase_check(
             |&(i, j)
             | {
             let (p, d) = gjk_contact(
-                shapes[i], &poses[i],
-                shapes[j], &poses[j],
+                &shapes[i], &poses[i],
+                &shapes[j], &poses[j],
             );
-            (d < _PROXIMITY_TOL).then(|| Contact { i, j, normal: p, depth: d })
+            (d < _PROXIMITY_TOL).then(|| Contact { i, j})
         }).collect()
 }

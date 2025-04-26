@@ -17,7 +17,8 @@ impl ConvexPolyhedron {
         Self(input_mesh.to_convex_hull())
     }
     pub fn from_points(points: &[V3])->Self{
-        let (ch_points, ch_indices) = convex_hull(points.iter().map(|x| Point::from_slice(x)).collect());
+        let pts: Vec<_> = points.iter().map(|x| Point::from_slice(x.as_slice())).collect();
+        let (ch_points, ch_indices) = convex_hull(&pts);
         let points: Vec<[f64; 3]> = ch_points.iter().map(|x| [x[0], x[1], x[2]] ).collect();
         let indices: Vec<[usize; 3]> = ch_indices.iter().map(|x| [ x[0] as usize, x[1] as usize, x[2] as usize]).collect();
         Self(TriMesh {
