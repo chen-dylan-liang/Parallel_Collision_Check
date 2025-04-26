@@ -4,8 +4,24 @@ use parallel_collision_detection::{serial_parry_gjk, serial_double_phase_collisi
 use parallel_collision_detection::gjk::gjk::{Contact, serial_narrow_phase_check, parallel_narrow_phase_check};
 use parallel_collision_detection::shape::shape::ShapeTrait;
 
+fn check(ground_truth: &[Contact], res: &[Contact], name: &str){
+    println!("Checking {}",name);
+    println!("{}",res.len());
+    if ground_truth.len()!=res.len() {panic!("Size mismatch! ground_truth_size={}, res={}", ground_truth.len(), res.len());}
+    let mut c1 = ground_truth.iter().map(|contact| (contact.i, contact.j)).collect::<Vec<_>>();
+    let mut c2 = res.iter().map(|contact| (contact.i, contact.j)).collect::<Vec<_>>();
+    c1.sort();
+    c2.sort();
+    for (p,(contact1, contact2)) in c1.iter().zip(c2.iter()).enumerate() {
+        // i < j always holds
+        if !((contact1.0==contact2.0) && (contact1.1==contact2.1)) {
+            panic!("{}-th pair mismatch! ground_truth:{},{}; res:{},{}", p, contact1.0, contact1.1, contact2.0, contact2.1);
+        }
+    }
+    println!("{} passed",name);
+}
 fn main() {
-    let hulls =  generate_random_hulls(1000, (4, 10), (V3::new(-1.0, -1.0, -1.0), V3::new(1.0, 1.0, 1.0)));
+    let hulls = generate_random_hulls(1000, (4, 10), (V3::new(-1.0, -1.0, -1.0), V3::new(1.0, 1.0, 1.0)));
     let parry_hulls = my_hulls_to_parry_hulls(&hulls);
     let poses: Vec<_> = (0..hulls.len()).map(|_| LieGroupISE3q::new_random()).collect();
     let mut indices = Vec::new();
@@ -18,11 +34,9 @@ fn main() {
     let c2 = serial_narrow_phase_check(&indices, &hulls, &poses);
     let c3 = parallel_parry_gjk(&indices, &parry_hulls, &poses);
     let c4 = parallel_narrow_phase_check(&indices, &hulls, &poses);
-    println!("{:?}, {:?}, {:?}, {:?}", c1.len(), c2.len(), c3.len(), c4.len());
-    if c1.len()!=c2.len() {panic!("Size mismatch! c1_size={}, c2_size={}", c1.len(), c2.len());}
-    for (p,(contact1, contact2)) in c1.iter().zip(c2.iter()).enumerate() {
-        if !(((contact1.i==contact2.i) && (contact1.j==contact2.j)) || ((contact1.i==contact2.j) && (contact1.j==contact2.i))) {
-            panic!("{}-th pair mismatch! c1:{},{}; c2:{},{}", p, contact1.i, contact1.j, contact2.i, contact2.j);
-        }
-    }
+    let c5 = serial_double_phase_collision_check(&hulls, &poses,4);
+    check(&c1, &c2, "my serial narrow");
+    check(&c1, &c3, "parry's parallel narrow");
+    check(&c1, &c4, "my parallel narrow");
+    check(&c1, &c5, "my serial double");
 }
