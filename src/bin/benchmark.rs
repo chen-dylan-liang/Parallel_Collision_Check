@@ -8,33 +8,22 @@ use shape::shape::ConvexPolyhedron as ConvexHull;
 use parallel_collision_detection::parallel_double_phase_collision_check;
 use parallel_collision_detection::serial_double_phase_collision_check;
 use parallel_collision_detection::shape::shape::ShapeTrait;
-
-fn generate_random_hulls(n: usize, vn_range: (usize, usize), point_range: (V3, V3)) -> Vec<ConvexHull> {
-    let mut rng = rand::thread_rng();
-    let mut points: Vec<V3> = Vec::new();
-    let mut ret: Vec<ConvexHull> = Vec::new();
-    for _ in 0..n {
-        let vn: usize = rng.gen_range(vn_range[0]..vn_range[1]);
-        points.clear();
-        for _ in 0..vn{
-            points.push(rng.gen_range(point_range[0] ..point_range[1]));
-        }
-       ret.push(ConvexHull::from_points(&points));
-    }
-   ret
-}
+use parallel_collision_detection::generate_random_hulls;
 
 fn main() {
     // random shapes
-    let hulls = generate_random_hulls(100,
-                                      (4,10),
-                                      (V3::new(-1.0,-1.0,-1.0), V3::new(1.0,1.0,1.0)))
-        .into_iter()
-        .map(|hull| Box::new(hull) as Box<dyn ShapeTrait>)
-        .collect() // Vec<Box<dyn ShapeTrait>>
-        .iter()
-        .map(|h| h)        // h has type &Box<dyn ShapeTrait>
-        .collect::<Vec<&dyn ShapeTrait>>();
+    let hull_vec: Vec<Box<dyn ShapeTrait>> =
+        generate_random_hulls(
+            100,
+            (4, 10),
+            (V3::new(-1.0, -1.0, -1.0), V3::new(1.0, 1.0, 1.0)),
+        )
+            .into_iter()
+            .map(|h| Box::new(h) as Box<dyn ShapeTrait>)
+            .collect();
+
+    let hulls: Vec<&dyn ShapeTrait> =
+        hull_vec.iter().map(Box::as_ref).collect();
     // random poses
     let poses=(0..hulls.len())
     .map(|_| LieGroupISE3q::new_random()).collect();
