@@ -6,7 +6,7 @@ use rayon::slice::ParallelSlice;
 use rayon::slice::ParallelSliceMut;
 use std::collections::HashSet;
 
-
+const MAX_DEPTH: usize = 4;
 
 // essentially divide-and-conquer in parallel
 fn parallel_longest_extent_axis(aabb_indices: &[usize], all_aabbs:&[AABB])->(usize, f64){
@@ -81,7 +81,7 @@ pub fn parallel_broad_phase_check<'a>(
 ) {
     rayon::scope(|scope| {
         // Call the recursive function directly inside the scope
-        parallel_dfs_bvh_pairs(s1, s2, contacts, scope);
+        parallel_dfs_bvh_pairs(s1, s2, contacts, scope,0);
     });
 }
 
@@ -90,6 +90,7 @@ fn parallel_dfs_bvh_pairs<'scope>(
     s2: &'scope (dyn BVHNode + 'scope),
     contacts: &'scope Mutex<HashSet<(usize, usize)>>,
     scope: &rayon::Scope<'scope>,
+    depth: usize
 ) {
     if !s1.intersects(s2) {
         return;
@@ -111,13 +112,13 @@ fn parallel_dfs_bvh_pairs<'scope>(
 
         (true, false) => {
             let (left, right) = s2.children();
-            parallel_dfs_bvh_pairs(s1, left.unwrap(), contacts, scope);
-            parallel_dfs_bvh_pairs(s1, right.unwrap(), contacts, scope);
+            parallel_dfs_bvh_pairs(s1, left.unwrap(), contacts, scope, depth + 1);
+            parallel_dfs_bvh_pairs(s1, right.unwrap(), contacts, scope, depth + 1);
         }
         (false, true) => {
             let (left, right) = s1.children();
-            parallel_dfs_bvh_pairs(left.unwrap(), s2, contacts, scope);
-            parallel_dfs_bvh_pairs(right.unwrap(), s2, contacts, scope);
+            parallel_dfs_bvh_pairs(left.unwrap(), s2, contacts, scope, depth + 1);
+            parallel_dfs_bvh_pairs(right.unwrap(), s2, contacts, scope, depth+1);
         }
 
         (false, false) => {
@@ -130,29 +131,35 @@ fn parallel_dfs_bvh_pairs<'scope>(
             let s2l = s2_left.unwrap();
             let s2r = s2_right.unwrap();
 
+            if depth < MAX_DEPTH {
             // Spawn one pair in a new task
             let s1l_ref = s1l;
             let s2l_ref = s2l;
             scope.spawn(move |subscope| {
-                parallel_dfs_bvh_pairs(s1l_ref, s2l_ref, contacts, subscope);
+                parallel_dfs_bvh_pairs(s1l_ref, s2l_ref, contacts, subscope, depth + 1);
             });
 
             // Spawn another pair
             let s1l_ref = s1l;
             let s2r_ref = s2r;
             scope.spawn(move |subscope| {
-                parallel_dfs_bvh_pairs(s1l_ref, s2r_ref, contacts, subscope);
+                parallel_dfs_bvh_pairs(s1l_ref, s2r_ref, contacts, subscope, depth+1);
             });
 
             // Spawn a third pair
             let s1r_ref = s1r;
             let s2l_ref = s2l;
             scope.spawn(move |subscope| {
-                parallel_dfs_bvh_pairs(s1r_ref, s2l_ref, contacts, subscope);
+                parallel_dfs_bvh_pairs(s1r_ref, s2l_ref, contacts, subscope, depth+1);
             });
+            } else{
+                parallel_dfs_bvh_pairs(s1l, s2l, contacts, scope, depth + 1);
+                parallel_dfs_bvh_pairs(s1l, s2r, contacts, scope, depth+1);
+                parallel_dfs_bvh_pairs(s1r, s2l, contacts, scope, depth+1);
+            }
 
             // Current thread handles the fourth pair
-            parallel_dfs_bvh_pairs(s1r, s2r, contacts, scope);
+            parallel_dfs_bvh_pairs(s1r, s2r, contacts, scope, depth+1);
         }
     }
 }
