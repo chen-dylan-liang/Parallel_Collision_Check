@@ -7,11 +7,12 @@ use parallel_collision_detection::shape::shape::ShapeTrait;
 fn check(ground_truth: &[Contact], res: &[Contact], name: &str){
     println!("Checking {}",name);
     println!("{}",res.len());
-    if ground_truth.len()!=res.len() {panic!("Size mismatch! ground_truth_size={}, res={}", ground_truth.len(), res.len());}
     let mut c1 = ground_truth.iter().map(|contact| (contact.i, contact.j)).collect::<Vec<_>>();
     let mut c2 = res.iter().map(|contact| (contact.i, contact.j)).collect::<Vec<_>>();
     c1.sort();
     c2.sort();
+    println!("{:?}",c2);
+    if ground_truth.len()!=res.len() {panic!("Size mismatch! ground_truth_size={}, res={}", ground_truth.len(), res.len());}
     for (p,(contact1, contact2)) in c1.iter().zip(c2.iter()).enumerate() {
         // i < j always holds
         if !((contact1.0==contact2.0) && (contact1.1==contact2.1)) {
@@ -21,9 +22,9 @@ fn check(ground_truth: &[Contact], res: &[Contact], name: &str){
     println!("{} passed",name);
 }
 fn main() {
-    let mut hulls = generate_random_hulls(100, (4, 20), (V3::new(-1.0, -1.0, -1.0), V3::new(1.0, 1.0, 1.0)));
-    //let mut hull2 = generate_random_hulls(100, (4, 20), (V3::new(1.0, 1.0, 1.0), V3::new(2.0, 2.0, 2.0)));
-    //hulls.append(&mut hull2);
+    let mut hulls = generate_random_hulls(30, (4, 11), (V3::new(-1.0, -1.0, -1.0), V3::new(1.0, 1.0, 1.0)));
+    let mut hull2 = generate_random_hulls(20, (4, 11), (V3::new(1.0, 1.0, 1.0), V3::new(2.0, 2.0, 2.0)));
+    hulls.append(&mut hull2);
     let parry_hulls = my_hulls_to_parry_hulls(&hulls);
     let poses: Vec<_> = (0..hulls.len()).map(|_| LieGroupISE3q::new_random()).collect();
     let mut indices = Vec::new();

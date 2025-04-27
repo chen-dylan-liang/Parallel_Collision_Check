@@ -1,3 +1,4 @@
+use std::ops::Mul;
 use apollo_rust_lie::{EuclideanSpaceElement, LieGroupElement};
 use apollo_rust_mesh_utils::trimesh::TriMesh;
 use apollo_rust_spatial::lie::se3_implicit_quaternion::LieGroupISE3q;
@@ -47,7 +48,8 @@ impl ShapeTrait for ConvexPolyhedron {
        let mut min_v = V3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY);
        let mut max_v = V3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
        for point in self.0.points.iter(){
-           let cur_point = shape_pose.0*V3::from_column_slice(point);
+
+           let cur_point = shape_pose.0.rotation*V3::from_column_slice(point)+shape_pose.0.translation.vector;
            min_v = min_v.inf(&cur_point);
            max_v = max_v.sup(&cur_point);
        }
