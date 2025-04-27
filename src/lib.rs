@@ -3,7 +3,6 @@
 use std::sync::Mutex;
 use apollo_rust_spatial::lie::se3_implicit_quaternion::LieGroupISE3q;
 use apollo_rust_spatial::vectors::V3;
-use nalgebra::{Isometry3, Point3};
 use crate::bvh::par_bvh::{parallel_broad_phase_check, parallel_build_bvh};
 use crate::bvh::srl_bvh::{serial_broad_phase_check, serial_build_bvh};
 use crate::bvh::structs::AABB;
@@ -17,6 +16,7 @@ use rand::Rng;
 use rayon::prelude::IntoParallelRefIterator;
 use crate::gjk::gjk::_PROXIMITY_TOL;
 use rayon::iter::ParallelIterator;
+
 pub mod shape;
 pub mod gjk;
 pub mod bvh;
@@ -100,6 +100,7 @@ pub fn parallel_parry_gjk(pairs: &[(usize, usize)], hulls: &[ParryConvexHull], p
             (dist < _PROXIMITY_TOL).then(|| Contact { i, j})
         }).collect()
 }
+
 
 
 
