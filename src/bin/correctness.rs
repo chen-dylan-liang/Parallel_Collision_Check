@@ -38,9 +38,11 @@ fn main() {
     let c4 = parallel_narrow_phase_check(&indices, &hulls, &poses);
     let c5 = serial_double_phase_collision_check(&hulls, &poses,4);
     let c6 = parallel_double_phase_collision_check(&hulls, &poses,4);
+
     check(&c1, &c2, "my serial narrow");
     check(&c1, &c3, "parry's parallel narrow");
     check(&c1, &c4, "my parallel narrow");
     check(&c1, &c5, "my serial double");
     check(&c1, &c6, "my parallel double");
+
 }

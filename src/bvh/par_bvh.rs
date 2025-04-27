@@ -5,7 +5,7 @@ use super::structs::{AABB, BVHNode, BVHInternalNode, BVHLeafNode};
 use rayon::slice::ParallelSlice;
 use rayon::slice::ParallelSliceMut;
 use std::collections::HashSet;
-
+use crate::bvh::srl_bvh::{serial_longest_extent_axis, serial_split_at_axis};
 const MAX_DEPTH: usize = 4;
 
 // essentially divide-and-conquer in parallel
@@ -52,44 +52,69 @@ fn parallel_split_at_axis<'a>(aabb_indices: &'a mut [usize], all_aabbs:&[AABB], 
     (left_slice, right_slice)
 }
 
-pub fn parallel_build_bvh(aabb_indices: &mut [usize], all_aabbs:&[AABB], cut_off_size:usize)->Box<dyn BVHNode>{
-    // S=O(1)
-    if aabb_indices.len() <= cut_off_size{
-        return Box::new(BVHLeafNode::new( aabb_indices.to_vec(), all_aabbs));
-    }
-    // S=O(logn)
-    let (axis,midpoint) = parallel_longest_extent_axis(aabb_indices, all_aabbs);
-    // S=O(logn)
-    let (indices_left, indices_right) = parallel_split_at_axis(aabb_indices, all_aabbs, axis, midpoint);
-    // safeguard for degenerate cases where all bounding boxes equal
-    if indices_left.is_empty() || indices_right.is_empty() {
+const BUILD_PARALLEL_THRESHOLD: usize = 1000;
+
+pub fn parallel_build_bvh(
+    aabb_indices: &mut [usize],
+    all_aabbs:      &[AABB],
+    cut_off_size:   usize,
+) -> Box<dyn BVHNode> {
+    // 1) check size up front
+    let n = aabb_indices.len();
+    if n <= cut_off_size {
         return Box::new(BVHLeafNode::new(aabb_indices.to_vec(), all_aabbs));
     }
-    // do recursive calls
-    let (left_tree, right_tree)=rayon::join(
-        || parallel_build_bvh(indices_left, all_aabbs, cut_off_size),
-        || parallel_build_bvh(indices_right, all_aabbs, cut_off_size));
-    // S=O(1)
-    let aabb = left_tree.union_aabb(&*right_tree);
-    Box::new(BVHInternalNode::new(aabb, left_tree, right_tree))
+
+    // decide in advance whether we’ll parallelize
+    let do_parallel = n > BUILD_PARALLEL_THRESHOLD;
+
+    // 2) split path by size
+    if do_parallel {
+        // – compute axis/median in parallel
+        let (axis, midpoint) =
+            parallel_longest_extent_axis(aabb_indices, all_aabbs);
+
+        // – this mutably borrows `aabb_indices`
+        let (left, right) =
+            parallel_split_at_axis(aabb_indices, all_aabbs, axis, midpoint);
+        if left.is_empty() || right.is_empty() {
+            return Box::new(BVHLeafNode::new(aabb_indices.to_vec(), all_aabbs));
+        }
+        // now spawn the two big recursive tasks
+        let (l, r) = rayon::join(
+            || parallel_build_bvh(left,  all_aabbs, cut_off_size),
+            || parallel_build_bvh(right, all_aabbs, cut_off_size),
+        );
+        let node_aabb = l.union_aabb(&*r);
+        Box::new(BVHInternalNode::new(node_aabb, l, r))
+    } else {
+        // serial fallback: no mutable/immutable conflict
+        let (axis, midpoint) =
+            serial_longest_extent_axis(aabb_indices, all_aabbs);
+        let (left, right) =
+            serial_split_at_axis(aabb_indices, all_aabbs, axis, midpoint);
+        if left.is_empty() || right.is_empty() {
+            return Box::new(BVHLeafNode::new(aabb_indices.to_vec(), all_aabbs));
+        }
+        let l = parallel_build_bvh(left,  all_aabbs, cut_off_size);
+        let r = parallel_build_bvh(right, all_aabbs, cut_off_size);
+        let node_aabb = l.union_aabb(&*r);
+        Box::new(BVHInternalNode::new(node_aabb, l, r))
+    }
 }
 
-pub fn parallel_broad_phase_check<'a>(
-    s1: &'a dyn BVHNode,
-    s2: &'a dyn BVHNode,
-    contacts: &'a Mutex<HashSet<(usize, usize)>>,
+pub fn parallel_broad_phase_check(
+    s1: &dyn BVHNode,
+    s2: &dyn BVHNode,
+    contacts: &Mutex<Vec<(usize, usize)>>,
 ) {
-    rayon::scope(|scope| {
-        // Call the recursive function directly inside the scope
-        parallel_dfs_bvh_pairs(s1, s2, contacts, scope,0);
-    });
+    parallel_dfs_bvh_pairs(s1, s2, contacts, 0);
 }
 
-fn parallel_dfs_bvh_pairs<'scope>(
-    s1: &'scope (dyn BVHNode + 'scope),
-    s2: &'scope (dyn BVHNode + 'scope),
-    contacts: &'scope Mutex<HashSet<(usize, usize)>>,
-    scope: &rayon::Scope<'scope>,
+fn parallel_dfs_bvh_pairs(
+    s1: &dyn BVHNode ,
+    s2: &dyn BVHNode,
+    contacts: & Mutex<Vec<(usize, usize)>>,
     depth: usize
 ) {
     if !s1.intersects(s2) {
@@ -103,8 +128,8 @@ fn parallel_dfs_bvh_pairs<'scope>(
             let mut buf = contacts.lock().unwrap();
             for &i in is1 {
                 for &j in is2 {
-                    if (i!=j){
-                        buf.insert(if i < j { (i, j) } else { (j, i) });
+                    if i<j{
+                        buf.push((i,j));
                     }
                 }
             }
@@ -112,13 +137,13 @@ fn parallel_dfs_bvh_pairs<'scope>(
 
         (true, false) => {
             let (left, right) = s2.children();
-            parallel_dfs_bvh_pairs(s1, left.unwrap(), contacts, scope, depth + 1);
-            parallel_dfs_bvh_pairs(s1, right.unwrap(), contacts, scope, depth + 1);
+            parallel_dfs_bvh_pairs(s1, left.unwrap(), contacts, depth + 1);
+            parallel_dfs_bvh_pairs(s1, right.unwrap(), contacts, depth + 1);
         }
         (false, true) => {
             let (left, right) = s1.children();
-            parallel_dfs_bvh_pairs(left.unwrap(), s2, contacts, scope, depth + 1);
-            parallel_dfs_bvh_pairs(right.unwrap(), s2, contacts, scope, depth+1);
+            parallel_dfs_bvh_pairs(left.unwrap(), s2, contacts, depth + 1);
+            parallel_dfs_bvh_pairs(right.unwrap(), s2, contacts, depth+1);
         }
 
         (false, false) => {
@@ -133,33 +158,22 @@ fn parallel_dfs_bvh_pairs<'scope>(
 
             if depth < MAX_DEPTH {
             // Spawn one pair in a new task
-            let s1l_ref = s1l;
-            let s2l_ref = s2l;
-            scope.spawn(move |subscope| {
-                parallel_dfs_bvh_pairs(s1l_ref, s2l_ref, contacts, subscope, depth + 1);
-            });
-
-            // Spawn another pair
-            let s1l_ref = s1l;
-            let s2r_ref = s2r;
-            scope.spawn(move |subscope| {
-                parallel_dfs_bvh_pairs(s1l_ref, s2r_ref, contacts, subscope, depth+1);
-            });
-
-            // Spawn a third pair
-            let s1r_ref = s1r;
-            let s2l_ref = s2l;
-            scope.spawn(move |subscope| {
-                parallel_dfs_bvh_pairs(s1r_ref, s2l_ref, contacts, subscope, depth+1);
-            });
+                rayon::join(
+                    || {
+                        parallel_dfs_bvh_pairs(s1l, s2l, contacts, depth+1);
+                        parallel_dfs_bvh_pairs(s1l, s2r, contacts, depth+1);
+                    },
+                    || {
+                        parallel_dfs_bvh_pairs(s1r, s2l, contacts,  depth+1);
+                        parallel_dfs_bvh_pairs(s1r, s2r, contacts, depth+1);
+                    },
+                );
             } else{
-                parallel_dfs_bvh_pairs(s1l, s2l, contacts, scope, depth + 1);
-                parallel_dfs_bvh_pairs(s1l, s2r, contacts, scope, depth+1);
-                parallel_dfs_bvh_pairs(s1r, s2l, contacts, scope, depth+1);
+                parallel_dfs_bvh_pairs(s1l, s2l, contacts,  depth + 1);
+                parallel_dfs_bvh_pairs(s1l, s2r, contacts,  depth+1);
+                parallel_dfs_bvh_pairs(s1r, s2l, contacts,  depth+1);
+                parallel_dfs_bvh_pairs(s1r, s2r, contacts, depth+1);
             }
-
-            // Current thread handles the fourth pair
-            parallel_dfs_bvh_pairs(s1r, s2r, contacts, scope, depth+1);
         }
     }
 }

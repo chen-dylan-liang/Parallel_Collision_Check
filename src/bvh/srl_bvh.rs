@@ -1,7 +1,9 @@
 use apollo_rust_spatial::vectors::V3;
 use super::structs::{AABB, BVHNode, BVHInternalNode, BVHLeafNode};
 use std::collections::HashSet;
-fn serial_longest_extent_axis(aabb_indices: &[usize], all_aabbs:&[AABB])->(usize, f64){
+use std::hash::Hash;
+
+pub fn serial_longest_extent_axis(aabb_indices: &[usize], all_aabbs:&[AABB])->(usize, f64){
     let mut min_v =  V3::new(f64::INFINITY,  f64::INFINITY,  f64::INFINITY);
     let mut max_v = V3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
     for &i in aabb_indices {
@@ -20,7 +22,7 @@ fn serial_longest_extent_axis(aabb_indices: &[usize], all_aabbs:&[AABB])->(usize
     (axis, 0.5*(max_v[axis] + min_v[axis]))
 }
 
-fn serial_split_at_axis<'a>(aabb_indices: &'a mut [usize], all_aabbs:&[AABB], axis:usize, midpoint: f64)->(&'a mut [usize], &'a mut [usize]){
+pub fn serial_split_at_axis<'a>(aabb_indices: &'a mut [usize], all_aabbs:&[AABB], axis:usize, midpoint: f64)->(&'a mut [usize], &'a mut [usize]){
     let mid = aabb_indices.into_iter().partition_in_place(
         |&idx| {
             all_aabbs[idx].center[axis] < midpoint
@@ -61,8 +63,8 @@ pub fn serial_broad_phase_check(
             let is2 = s2.leaf_indices().unwrap();
             for &i in is1 {
                 for &j in is2 {
-                    if (i!=j){
-                        contacts.insert(if i < j { (i, j) } else { (j, i) });
+                    if i!=j{
+                        contacts.insert(if i< j {(i,j)} else {(j,i)});
                     }
                 }
             }
