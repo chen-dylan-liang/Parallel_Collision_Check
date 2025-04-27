@@ -13,8 +13,8 @@ use std::fs::File;
 use std::io::Write;
 
 fn main() ->std::io::Result<()> {
-    for cut_off  in [4] {
-        let file_name = "./res/benchmark_".to_owned() + &*cut_off.to_string() +"_4_50.txt";
+    for cut_off  in [1,4,16,64,256,1024] {
+        let file_name = "./res/benchmark_".to_owned() + &*cut_off.to_string() +".txt";
         let mut file = File::create(file_name)?;
         for n in [10, 20, 50, 100, 200, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000] {
             writeln!(file, "n={}", n)?;
