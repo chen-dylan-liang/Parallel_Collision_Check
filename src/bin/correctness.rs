@@ -11,7 +11,6 @@ fn check(ground_truth: &[Contact], res: &[Contact], name: &str){
     let mut c2 = res.iter().map(|contact| (contact.i, contact.j)).collect::<Vec<_>>();
     c1.sort();
     c2.sort();
-    println!("{:?}",c2);
     if ground_truth.len()!=res.len() {panic!("Size mismatch! ground_truth_size={}, res={}", ground_truth.len(), res.len());}
     for (p,(contact1, contact2)) in c1.iter().zip(c2.iter()).enumerate() {
         // i < j always holds
@@ -22,8 +21,8 @@ fn check(ground_truth: &[Contact], res: &[Contact], name: &str){
     println!("{} passed",name);
 }
 fn main() {
-    let mut hulls = generate_random_hulls(30, (4, 11), (V3::new(-1.0, -1.0, -1.0), V3::new(1.0, 1.0, 1.0)));
-    let mut hull2 = generate_random_hulls(20, (4, 11), (V3::new(1.0, 1.0, 1.0), V3::new(2.0, 2.0, 2.0)));
+    let mut hulls = generate_random_hulls(100, (50, 100), (V3::new(-1.0, -1.0, -1.0), V3::new(0.0, 0.0, 0.0)));
+    let mut hull2 = generate_random_hulls(100, (50, 100), (V3::new(0.0, 0.0, 0.0), V3::new(1.0, 1.0, 1.0)));
     hulls.append(&mut hull2);
     let parry_hulls = my_hulls_to_parry_hulls(&hulls);
     let poses: Vec<_> = (0..hulls.len()).map(|_| LieGroupISE3q::new_random()).collect();
