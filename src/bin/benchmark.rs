@@ -13,13 +13,13 @@ use std::fs::File;
 use std::io::Write;
 
 fn main() ->std::io::Result<()> {
-    for cut_off  in [1,2,4,8,16,32,64,128,256,512,1024] {
-        let file_name = "./res/benchmark_".to_owned() + &*cut_off.to_string() +".txt";
+    for cut_off  in [4] {
+        let file_name = "./res/benchmark_".to_owned() + &*cut_off.to_string() +"_4_50.txt";
         let mut file = File::create(file_name)?;
         for n in [10, 20, 50, 100, 200, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000] {
             writeln!(file, "n={}", n)?;
             println!("cut_off={}, n={}, running...",cut_off, n);
-            let mut hulls = generate_random_hulls(n, (50, 100), (V3::new(-1.0, -1.0, -1.0), V3::new(1.0, 1.0, 1.0)));
+            let mut hulls = generate_random_hulls(n, (50, 100), (V3::new(0.0, 0.0, 0.0), V3::new(1.0, 1.0, 1.0)));
             //let mut hull2 = generate_random_hulls(n/2, (50, 100), (V3::new(0.0, 0.0, 0.0), V3::new(1.0, 1.0, 1.0)));
             //hulls.append(&mut hull2);
             let parry_hulls = my_hulls_to_parry_hulls(&hulls);
@@ -30,6 +30,7 @@ fn main() ->std::io::Result<()> {
                     indices.push((i, j));
                 }
             }
+
             let t = Instant::now();
             serial_parry_gjk(&indices, &parry_hulls, &poses);
             writeln!(file, "serial_parry_narrow={:?}", t.elapsed())?;

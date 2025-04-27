@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::Mutex;
+use std::time::Instant;
 use apollo_rust_spatial::lie::se3_implicit_quaternion::LieGroupISE3q;
 use apollo_rust_spatial::vectors::V3;
 use crate::bvh::par_bvh::{parallel_broad_phase_check, parallel_build_bvh};
@@ -18,6 +19,7 @@ use rand::Rng;
 use rayon::prelude::IntoParallelRefIterator;
 use crate::gjk::gjk::_PROXIMITY_TOL;
 use rayon::iter::ParallelIterator;
+use rayon::prelude::*;
 
 pub mod shape;
 pub mod gjk;
@@ -54,15 +56,19 @@ pub fn parallel_double_phase_collision_check(shapes: &[ConvexHull],
                                              poses: &[LieGroupISE3q],
                                              cut_off: usize)->Vec<Contact>{
     // construct aabbs
-    let aabbs:Vec<AABB>  = shapes.iter()
-        .zip(poses.iter()).
+    let aabbs:Vec<AABB>  = shapes.par_iter()
+        .zip(poses.par_iter()).
         map(|(shape, pose)|{ let (min,max)=shape.aabb(pose);
     AABB::new(min,max)}).collect();
+
     // broad phase
     let mut indices: Vec<usize> = (0..aabbs.len()).collect();
     let bvh = parallel_build_bvh(&mut indices, &aabbs, cut_off);
+
+
     let potential_pairs: Mutex<HashSet<(usize, usize)>> = Mutex::new(HashSet::new());
     parallel_broad_phase_check(&*bvh, &*bvh, &potential_pairs);
+
     // narrow phase
     let pairs:Vec<_>=potential_pairs.into_inner().unwrap().into_iter().collect();
     parallel_narrow_phase_check(&pairs, shapes, poses)
@@ -76,14 +82,18 @@ pub fn serial_double_phase_collision_check(shapes: &[ConvexHull],
         .zip(poses.iter()).
         map(|(shape, pose)|{ let (min,max)=shape.aabb(pose);
             AABB::new(min,max)}).collect();
+
     // broad phase
     let mut indices: Vec<usize> = (0..aabbs.len()).collect();
     let bvh = serial_build_bvh(&mut indices, &aabbs, cut_off);
+
     let mut potential_pairs = HashSet::<(usize, usize)>::new();
+
     serial_broad_phase_check(&*bvh, &*bvh, &mut potential_pairs);
     // narrow phase
     let pairs:Vec<_> = potential_pairs.into_iter().collect();
     serial_narrow_phase_check(&pairs, shapes, poses)
+
 }
 
 pub fn serial_parry_gjk(pairs: &[(usize, usize)], hulls: &[ParryConvexHull], poses: &[LieGroupISE3q])->Vec<Contact>{

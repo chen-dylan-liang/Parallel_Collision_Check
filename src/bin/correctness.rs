@@ -21,9 +21,9 @@ fn check(ground_truth: &[Contact], res: &[Contact], name: &str){
     println!("{} passed",name);
 }
 fn main() {
-    let mut hulls = generate_random_hulls(100, (50, 100), (V3::new(-1.0, -1.0, -1.0), V3::new(0.0, 0.0, 0.0)));
-    let mut hull2 = generate_random_hulls(100, (50, 100), (V3::new(0.0, 0.0, 0.0), V3::new(1.0, 1.0, 1.0)));
-    hulls.append(&mut hull2);
+    let mut hulls = generate_random_hulls(1000, (50, 100), (V3::new(0.0, 0.0, 0.0), V3::new(1.0, 1.0, 1.0)));
+    //let mut hull2 = generate_random_hulls(100, (50, 100), (V3::new(0.0, 0.0, 0.0), V3::new(1.0, 1.0, 1.0)));
+    //hulls.append(&mut hull2);
     let parry_hulls = my_hulls_to_parry_hulls(&hulls);
     let poses: Vec<_> = (0..hulls.len()).map(|_| LieGroupISE3q::new_random()).collect();
     let mut indices = Vec::new();
@@ -36,8 +36,8 @@ fn main() {
     let c2 = serial_narrow_phase_check(&indices, &hulls, &poses);
     let c3 = parallel_parry_gjk(&indices, &parry_hulls, &poses);
     let c4 = parallel_narrow_phase_check(&indices, &hulls, &poses);
-    let c5 = serial_double_phase_collision_check(&hulls, &poses,1);
-    let c6 = parallel_double_phase_collision_check(&hulls, &poses,1);
+    let c5 = serial_double_phase_collision_check(&hulls, &poses,4);
+    let c6 = parallel_double_phase_collision_check(&hulls, &poses,4);
     check(&c1, &c2, "my serial narrow");
     check(&c1, &c3, "parry's parallel narrow");
     check(&c1, &c4, "my parallel narrow");

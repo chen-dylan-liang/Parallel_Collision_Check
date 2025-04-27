@@ -1,0 +1,64 @@
+cut_off=4, n=10, running...
+#pairs=45
+# pairs_to_narrow=24
+# pairs_to_narrow=24
+cut_off=4, n=20, running...
+#pairs=190
+# pairs_to_narrow=89
+# pairs_to_narrow=89
+cut_off=4, n=50, running...
+#pairs=1225
+# pairs_to_narrow=255
+# pairs_to_narrow=255
+cut_off=4, n=100, running...
+#pairs=4950
+# pairs_to_narrow=755
+# pairs_to_narrow=755
+cut_off=4, n=200, running...
+#pairs=19900
+# pairs_to_narrow=3108
+# pairs_to_narrow=3108
+cut_off=4, n=500, running...
+#pairs=124750
+# pairs_to_narrow=15499
+# pairs_to_narrow=15499
+cut_off=4, n=1000, running...
+#pairs=499500
+# pairs_to_narrow=50517
+# pairs_to_narrow=50517
+cut_off=4, n=2000, running...
+#pairs=1999000
+# pairs_to_narrow=171524
+# pairs_to_narrow=171524
+cut_off=4, n=3000, running...
+#pairs=4498500
+# pairs_to_narrow=345151
+# pairs_to_narrow=345151
+cut_off=4, n=4000, running...
+#pairs=7998000
+# pairs_to_narrow=601189
+# pairs_to_narrow=601189
+cut_off=4, n=5000, running...
+#pairs=12497500
+# pairs_to_narrow=912065
+# pairs_to_narrow=912065
+cut_off=4, n=6000, running...
+#pairs=17997000
+# pairs_to_narrow=1279135
+# pairs_to_narrow=1279135
+cut_off=4, n=7000, running...
+#pairs=24496500
+# pairs_to_narrow=1674796
+# pairs_to_narrow=1674796
+cut_off=4, n=8000, running...
+#pairs=31996000
+# pairs_to_narrow=2163050
+# pairs_to_narrow=2163050
+cut_off=4, n=9000, running...
+#pairs=40495500
+# pairs_to_narrow=2679908
+# pairs_to_narrow=2679908
+cut_off=4, n=10000, running...
+#pairs=49995000
+# pairs_to_narrow=3286997
+# pairs_to_narrow=3286997
