@@ -1,6 +1,6 @@
 use apollo_rust_spatial::vectors::V3;
 use super::structs::{AABB, BVHNode, BVHInternalNode, BVHLeafNode};
-
+use std::collections::HashSet;
 fn serial_longest_extent_axis(aabb_indices: &[usize], all_aabbs:&[AABB])->(usize, f64){
     let mut min_v =  V3::new(f64::INFINITY,  f64::INFINITY,  f64::INFINITY);
     let mut max_v = V3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
@@ -49,7 +49,7 @@ pub fn serial_build_bvh(aabb_indices: &mut [usize], all_aabbs:&[AABB], cut_off_s
 pub fn serial_broad_phase_check(
     s1: &dyn BVHNode,
     s2: &dyn BVHNode,
-    contacts: &mut Vec<(usize, usize)>,
+    contacts: &mut HashSet<(usize, usize)>,
 ) {
     if !s1.intersects(s2) {
         return;
@@ -61,7 +61,9 @@ pub fn serial_broad_phase_check(
             let is2 = s2.leaf_indices().unwrap();
             for &i in is1 {
                 for &j in is2 {
-                    if i < j { contacts.push((i, j)); }       // skip self/dup
+                    if (i!=j){
+                        contacts.insert(if i < j { (i, j) } else { (j, i) });
+                    }
                 }
             }
         }

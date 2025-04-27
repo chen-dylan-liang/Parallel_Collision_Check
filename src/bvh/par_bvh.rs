@@ -4,7 +4,7 @@ use rayon::prelude::*;
 use super::structs::{AABB, BVHNode, BVHInternalNode, BVHLeafNode};
 use rayon::slice::ParallelSlice;
 use rayon::slice::ParallelSliceMut;
-
+use std::collections::HashSet;
 
 
 
@@ -77,7 +77,7 @@ pub fn parallel_build_bvh(aabb_indices: &mut [usize], all_aabbs:&[AABB], cut_off
 pub fn parallel_broad_phase_check<'a>(
     s1: &'a dyn BVHNode,
     s2: &'a dyn BVHNode,
-    contacts: &'a Mutex<Vec<(usize, usize)>>,
+    contacts: &'a Mutex<HashSet<(usize, usize)>>,
 ) {
     rayon::scope(|scope| {
         // Call the recursive function directly inside the scope
@@ -88,7 +88,7 @@ pub fn parallel_broad_phase_check<'a>(
 fn parallel_dfs_bvh_pairs<'scope>(
     s1: &'scope (dyn BVHNode + 'scope),
     s2: &'scope (dyn BVHNode + 'scope),
-    contacts: &'scope Mutex<Vec<(usize, usize)>>,
+    contacts: &'scope Mutex<HashSet<(usize, usize)>>,
     scope: &rayon::Scope<'scope>,
 ) {
     if !s1.intersects(s2) {
@@ -102,7 +102,9 @@ fn parallel_dfs_bvh_pairs<'scope>(
             let mut buf = contacts.lock().unwrap();
             for &i in is1 {
                 for &j in is2 {
-                    if i < j { buf.push((i, j)); }       // skip self/dup
+                    if (i!=j){
+                        buf.insert(if i < j { (i, j) } else { (j, i) });
+                    }
                 }
             }
         }

@@ -21,7 +21,9 @@ fn check(ground_truth: &[Contact], res: &[Contact], name: &str){
     println!("{} passed",name);
 }
 fn main() {
-    let hulls = generate_random_hulls(1000, (4, 20), (V3::new(-1.0, -1.0, -1.0), V3::new(1.0, 1.0, 1.0)));
+    let mut hulls = generate_random_hulls(100, (4, 20), (V3::new(-1.0, -1.0, -1.0), V3::new(1.0, 1.0, 1.0)));
+    //let mut hull2 = generate_random_hulls(100, (4, 20), (V3::new(1.0, 1.0, 1.0), V3::new(2.0, 2.0, 2.0)));
+    //hulls.append(&mut hull2);
     let parry_hulls = my_hulls_to_parry_hulls(&hulls);
     let poses: Vec<_> = (0..hulls.len()).map(|_| LieGroupISE3q::new_random()).collect();
     let mut indices = Vec::new();
