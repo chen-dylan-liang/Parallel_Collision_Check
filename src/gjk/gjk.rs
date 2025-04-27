@@ -4,7 +4,7 @@ use crate::shape::shape::{ConvexPolyhedron, ShapeTrait};
 use apollo_rust_spatial::lie::se3_implicit_quaternion::LieGroupISE3q;
 use rayon::prelude::*;
 
-pub const _PROXIMITY_TOL: f64 =1e-6;
+const _PROXIMITY_TOL: f64 =1e-10;
 const _PROXIMITY_MAX_ITERS: usize = 100;
 
 #[derive(Clone)]
@@ -180,7 +180,7 @@ pub fn serial_narrow_phase_check(
                 &shapes[i], &poses[i],
                 &shapes[j], &poses[j],
             );
-            (d < _PROXIMITY_TOL).then(|| Contact { i, j})
+            (d == 0.0).then(|| Contact { i, j})
         }).collect()
 }
 
@@ -202,6 +202,6 @@ pub fn parallel_narrow_phase_check(
                 &shapes[i], &poses[i],
                 &shapes[j], &poses[j],
             );
-            (d < _PROXIMITY_TOL).then(|| Contact { i, j})
+            (d ==0.0).then(|| Contact { i, j})
         }).collect()
 }

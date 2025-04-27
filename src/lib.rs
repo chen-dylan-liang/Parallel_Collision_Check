@@ -17,7 +17,6 @@ use crate::shape::shape::ConvexPolyhedron as ConvexHull;
 use parry3d_f64::math::Point as ParryPoint;
 use rand::Rng;
 use rayon::prelude::IntoParallelRefIterator;
-use crate::gjk::gjk::_PROXIMITY_TOL;
 use rayon::iter::ParallelIterator;
 use rayon::prelude::*;
 
@@ -97,7 +96,7 @@ pub fn serial_parry_gjk(pairs: &[(usize, usize)], hulls: &[ParryConvexHull], pos
             |&(i, j)
             | {
                 let dist = parry_distance(&poses[i].0, &hulls[i], &poses[j].0, &hulls[j]).unwrap();
-                (dist < _PROXIMITY_TOL).then(|| Contact { i, j})
+                (dist == 0.0).then(|| Contact { i, j})
             }).collect()
 }
 
@@ -106,7 +105,7 @@ pub fn parallel_parry_gjk(pairs: &[(usize, usize)], hulls: &[ParryConvexHull], p
         |&(i, j)
         | {
             let dist = parry_distance(&poses[i].0, &hulls[i], &poses[j].0, &hulls[j]).unwrap();
-            (dist < _PROXIMITY_TOL).then(|| Contact { i, j})
+            (dist ==0.0).then(|| Contact { i, j})
         }).collect()
 }
 
