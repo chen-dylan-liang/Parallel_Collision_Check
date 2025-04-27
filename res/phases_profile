@@ -1,9 +1,10 @@
-Serial built aabbs in 3.143746ms
-Serial built bvh in 2.40881ms
-Serial broad check in 591.467164ms
-Serial narrow check in 6.108026051s
+serial build AABBs 1.974042ms
+serial build BVH 1.927567ms
+serial broad check 188.925116ms
+serial narrow check 3.549823802s
 
-Parallel built aabbs in 608.627µs
-Parallel built bvh in 1.569239ms
-Parallel broad check in 295.457442ms
-Parallel narrow check in 745.382548ms
+para build AABBs 545.803µs
+para build BVH 1.426485ms
+para broad check 46.21915ms
+para narrow check 266.638118ms
+

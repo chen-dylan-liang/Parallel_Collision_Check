@@ -6,7 +6,7 @@ use rayon::slice::ParallelSlice;
 use rayon::slice::ParallelSliceMut;
 use std::collections::HashSet;
 use crate::bvh::srl_bvh::{serial_longest_extent_axis, serial_split_at_axis};
-const MAX_DEPTH: usize = 4;
+const MAX_DEPTH: usize = 16;
 
 // essentially divide-and-conquer in parallel
 fn parallel_longest_extent_axis(aabb_indices: &[usize], all_aabbs:&[AABB])->(usize, f64){
@@ -52,7 +52,7 @@ fn parallel_split_at_axis<'a>(aabb_indices: &'a mut [usize], all_aabbs:&[AABB], 
     (left_slice, right_slice)
 }
 
-const BUILD_PARALLEL_THRESHOLD: usize = 1000;
+const BUILD_PARALLEL_THRESHOLD: usize = 4096;
 
 pub fn parallel_build_bvh(
     aabb_indices: &mut [usize],
@@ -103,76 +103,86 @@ pub fn parallel_build_bvh(
     }
 }
 
+use rayon::join;
+use thread_local::ThreadLocal;
+use std::cell::RefCell;
+
 pub fn parallel_broad_phase_check(
     s1: &dyn BVHNode,
     s2: &dyn BVHNode,
-    contacts: &Mutex<Vec<(usize, usize)>>,
-) {
-    parallel_dfs_bvh_pairs(s1, s2, contacts, 0);
+) -> Vec<(usize, usize)> {
+    // each Rayon worker/thread gets its own RefCell<Vec<…>>
+    let tl: ThreadLocal<RefCell<Vec<(usize, usize)>>> = ThreadLocal::new();
+
+    // recurse & fill thread-local buffers
+    gather(s1, s2, 0, &tl);
+
+    // consume the ThreadLocal, extract each Vec, and flatten them
+    let mut out = Vec::new();
+    for cell in tl.into_iter() {
+        out.extend(cell.into_inner());
+    }
+    out
 }
 
-fn parallel_dfs_bvh_pairs(
-    s1: &dyn BVHNode ,
+fn gather(
+    s1: &dyn BVHNode,
     s2: &dyn BVHNode,
-    contacts: & Mutex<Vec<(usize, usize)>>,
-    depth: usize
+    depth: usize,
+    tl: &ThreadLocal<RefCell<Vec<(usize, usize)>>>,
 ) {
+    // no intersection → nothing to do
     if !s1.intersects(s2) {
         return;
     }
 
     match (s1.is_leaf(), s2.is_leaf()) {
         (true, true) => {
-            let is1 = s1.leaf_indices().unwrap();
-            let is2 = s2.leaf_indices().unwrap();
-            let mut buf = contacts.lock().unwrap();
-            for &i in is1 {
-                for &j in is2 {
-                    if i<j{
-                        buf.push((i,j));
+            // both leaves: write into *this* thread’s Vec
+            let local = tl.get_or(|| RefCell::new(Vec::new()));
+            for &i in s1.leaf_indices().unwrap() {
+                for &j in s2.leaf_indices().unwrap() {
+                    if i < j {
+                        local.borrow_mut().push((i, j));
                     }
                 }
             }
         }
 
         (true, false) => {
-            let (left, right) = s2.children();
-            parallel_dfs_bvh_pairs(s1, left.unwrap(), contacts, depth + 1);
-            parallel_dfs_bvh_pairs(s1, right.unwrap(), contacts, depth + 1);
+            let (l, r) = s2.children();
+            gather(s1, l.unwrap(), depth + 1, tl);
+            gather(s1, r.unwrap(), depth + 1, tl);
         }
         (false, true) => {
-            let (left, right) = s1.children();
-            parallel_dfs_bvh_pairs(left.unwrap(), s2, contacts, depth + 1);
-            parallel_dfs_bvh_pairs(right.unwrap(), s2, contacts, depth+1);
+            let (l, r) = s1.children();
+            gather(l.unwrap(), s2, depth + 1, tl);
+            gather(r.unwrap(), s2, depth + 1, tl);
         }
 
         (false, false) => {
-            let (s1_left, s1_right) = s1.children();
-            let (s2_left, s2_right) = s2.children();
-
-            // Create local variables to avoid multiple unwraps
-            let s1l = s1_left.unwrap();
-            let s1r = s1_right.unwrap();
-            let s2l = s2_left.unwrap();
-            let s2r = s2_right.unwrap();
+            let (s1l, s1r) = s1.children();
+            let (s2l, s2r) = s2.children();
+            let (s1l, s1r) = (s1l.unwrap(), s1r.unwrap());
+            let (s2l, s2r) = (s2l.unwrap(), s2r.unwrap());
 
             if depth < MAX_DEPTH {
-            // Spawn one pair in a new task
-                rayon::join(
+                join(
                     || {
-                        parallel_dfs_bvh_pairs(s1l, s2l, contacts, depth+1);
-                        parallel_dfs_bvh_pairs(s1l, s2r, contacts, depth+1);
+                        gather(s1l, s2l, depth + 1, tl);
+                        gather(s1l, s2r, depth + 1, tl);
                     },
                     || {
-                        parallel_dfs_bvh_pairs(s1r, s2l, contacts,  depth+1);
-                        parallel_dfs_bvh_pairs(s1r, s2r, contacts, depth+1);
+                        gather(s1r, s2l, depth + 1, tl);
+                        gather(s1r, s2r, depth + 1, tl);
                     },
                 );
-            } else{
-                parallel_dfs_bvh_pairs(s1l, s2l, contacts,  depth + 1);
-                parallel_dfs_bvh_pairs(s1l, s2r, contacts,  depth+1);
-                parallel_dfs_bvh_pairs(s1r, s2l, contacts,  depth+1);
-                parallel_dfs_bvh_pairs(s1r, s2r, contacts, depth+1);
+            } else {
+                // sequential fallback
+                gather(s1l, s2l, depth + 1, tl);
+                gather(s1l, s2r, depth + 1, tl);
+                gather(s1r, s2l, depth + 1, tl);
+                gather(s1r, s2r, depth + 1, tl);
             }
         }
     }

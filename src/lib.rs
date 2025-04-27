@@ -55,39 +55,59 @@ pub fn parallel_double_phase_collision_check(shapes: &[ConvexHull],
                                              poses: &[LieGroupISE3q],
                                              cut_off: usize)->Vec<Contact>{
     // construct aabbs
+    //let t=Instant::now();
     let aabbs:Vec<AABB>  = shapes.par_iter()
         .zip(poses.par_iter()).
         map(|(shape, pose)|{ let (min,max)=shape.aabb(pose);
     AABB::new(min,max)}).collect();
+    //println!("para build AABBs {:?}",t.elapsed());
+    
     // broad phase
     let mut indices: Vec<usize> = (0..aabbs.len()).collect();
+    //let t=Instant::now();
     let bvh = parallel_build_bvh(&mut indices, &aabbs, cut_off);
+   // println!("para build BVH {:?}", t.elapsed());
 
-    let potential_pairs: Mutex<Vec<(usize, usize)>> = Mutex::new(Vec::new());
-    parallel_broad_phase_check(&*bvh, &*bvh, &potential_pairs);
+    //let potential_pairs: Mutex<Vec<(usize, usize)>> = Mutex::new(Vec::new());
+    //let t = Instant::now();
+    let pairs=parallel_broad_phase_check(&*bvh, &*bvh);
+    //println!("para broad check {:?}", t.elapsed());
     // narrow phase
-    let pairs:Vec<_>=potential_pairs.into_inner().unwrap();
-   parallel_narrow_phase_check(&pairs, shapes, poses)
+    //let pairs:Vec<_>=potential_pairs.into_inner().unwrap();
+    //let t=Instant::now();
+   let ret=parallel_narrow_phase_check(&pairs, shapes, poses);
+   // println!("para narrow check {:?}", t.elapsed());
+    ret
 
 }
 
 pub fn serial_double_phase_collision_check(shapes: &[ConvexHull],
                                            poses: &[LieGroupISE3q],
                                            cut_off: usize)->Vec<Contact>{
-    // construct aabbslet
+    // construct aabbs
+    //let t= Instant::now();
     let aabbs:Vec<AABB>  = shapes.iter()
         .zip(poses.iter()).
         map(|(shape, pose)|{ let (min,max)=shape.aabb(pose);
             AABB::new(min,max)}).collect();
+   // println!("serial build AABBs {:?}",t.elapsed());
+    
     // broad phase
     let mut indices: Vec<usize> = (0..aabbs.len()).collect();
+    //let t=Instant::now();
     let bvh = serial_build_bvh(&mut indices, &aabbs, cut_off);
+   // println!("serial build BVH {:?}", t.elapsed());
 
-    let mut potential_pairs = HashSet::<(usize, usize)>::new();
-    serial_broad_phase_check(&*bvh, &*bvh, &mut potential_pairs);
+    
+    //let t = Instant::now();
+    let pairs = serial_broad_phase_check(&*bvh, &*bvh);
+    //println!("serial broad check {:?}", t.elapsed());
     // narrow phase
-    let pairs:Vec<_> = potential_pairs.into_iter().collect();
-    serial_narrow_phase_check(&pairs, shapes, poses)
+   // let pairs:Vec<_> = potential_pairs.into_iter().collect();
+    //let t = Instant::now();
+   let ret= serial_narrow_phase_check(&pairs, shapes, poses);
+    //println!("serial narrow check {:?}", t.elapsed());
+    ret
 
 }
 

@@ -51,44 +51,55 @@ pub fn serial_build_bvh(aabb_indices: &mut [usize], all_aabbs:&[AABB], cut_off_s
 pub fn serial_broad_phase_check(
     s1: &dyn BVHNode,
     s2: &dyn BVHNode,
-    contacts: &mut HashSet<(usize, usize)>,
-) {
+)->Vec<(usize, usize)> {
+    // No intersection ⇒ no contacts
     if !s1.intersects(s2) {
-        return;
+        return Vec::new();
     }
 
     match (s1.is_leaf(), s2.is_leaf()) {
+        // both leaves ⇒ collect leaf–leaf pairs
         (true, true) => {
             let is1 = s1.leaf_indices().unwrap();
             let is2 = s2.leaf_indices().unwrap();
+            let mut out = Vec::with_capacity(is1.len() * is2.len());
             for &i in is1 {
                 for &j in is2 {
-                    if i!=j{
-                        contacts.insert(if i< j {(i,j)} else {(j,i)});
+                    if i < j {
+                        out.push((i, j));
                     }
                 }
             }
+            out
         }
+
+        // one side is leaf ⇒ recurse on the other side and concatenate
         (true, false) => {
-            let (left, right) = s2.children();
-            serial_broad_phase_check(s1, left.unwrap(), contacts);
-            serial_broad_phase_check(s1, right.unwrap(), contacts);
+            let (l, r) = s2.children();
+            let mut left  =serial_broad_phase_check(s1, l.unwrap());
+            let right = serial_broad_phase_check(s1, r.unwrap());
+            left.extend(right);
+            left
         }
         (false, true) => {
-            let (left, right) = s1.children();
-            serial_broad_phase_check(left.unwrap(), s2, contacts);
-            serial_broad_phase_check(right.unwrap(), s2, contacts);
+            let (l, r) = s1.children();
+            let mut left  = serial_broad_phase_check(l.unwrap(), s2);
+            let right = serial_broad_phase_check(r.unwrap(), s2);
+            left.extend(right);
+            left
         }
+
+        // both internal ⇒ spawn two tasks and merge their results
         (false, false) => {
-            let (s1_left, s1_right) = s1.children();
-            let (s2_left, s2_right) = s2.children();
-            serial_broad_phase_check(s1_left.unwrap(), s2_left.unwrap(), contacts);
-            serial_broad_phase_check(s1_left.unwrap(), s2_right.unwrap(), contacts);
-            serial_broad_phase_check(s1_right.unwrap(), s2_left.unwrap(), contacts);
-            serial_broad_phase_check(s1_right.unwrap(), s2_right.unwrap(), contacts);
+            let (s1l, s1r) = s1.children();
+            let (s2l, s2r) = s2.children();
+                let mut v = Vec::new();
+                v.extend(serial_broad_phase_check(s1l.unwrap(), s2l.unwrap(), ));
+                v.extend(serial_broad_phase_check(s1l.unwrap(), s2r.unwrap(),));
+                v.extend(serial_broad_phase_check(s1r.unwrap(), s2l.unwrap(),));
+                v.extend(serial_broad_phase_check(s1r.unwrap(), s2r.unwrap(),));
+                v
+            
         }
     }
 }
-
-
-
