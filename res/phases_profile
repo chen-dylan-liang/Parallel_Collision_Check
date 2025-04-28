@@ -8,3 +8,8 @@ para build BVH 1.426485ms
 para broad check 46.21915ms
 para narrow check 266.638118ms
 
+AABB_speed_up_ratio: 3.62
+BVH_build_speed_up_ratio: 1.35
+BVH_traverse_speed_up_ratio: 4.09
+Narrow_check_speed_up_ratio: 13.31
+
